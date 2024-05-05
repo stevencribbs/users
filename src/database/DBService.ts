@@ -24,13 +24,16 @@ export class DBService {
       email,
       password: hashedPassword,
       confirmed: false,
+      refreshTokenCount: 0,
     });
 
     return newUser;
   }
 
   async updateUser(userKey: string, email: string, options: updateUserOptions) {
-    const { firstName, lastName, confirmed, password } = options;
+    console.log({ userKey }, { email }, { options });
+    const { firstName, lastName, confirmed, password, refreshTokenCount } =
+      options;
     const updatedUser = await UserModel.update(
       { userKey, email },
       {
@@ -38,9 +41,10 @@ export class DBService {
         ...(lastName && { lastName }),
         ...(confirmed && { confirmed }),
         ...(password && { password }),
+        ...(refreshTokenCount && { refreshTokenCount }),
       },
     );
-
+    console.log('finished update');
     return updatedUser;
   }
 

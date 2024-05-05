@@ -24,4 +24,6 @@ export class UserOutput implements Partial<User> {
 
   @Field()
   confirmed: boolean;
+
+  refreshTokenCount: number;
 }

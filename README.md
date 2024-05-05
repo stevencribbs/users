@@ -52,7 +52,8 @@ The expected data structure for an individual user is:
   firstName: string,
   lastName: string,
   password: string,
-  confirmed: bool,
+  confirmed: boolean,
+  refreshTokenCount: number,
 }
 ```
 

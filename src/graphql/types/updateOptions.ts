@@ -3,4 +3,5 @@ export interface updateUserOptions {
   lastName?: string;
   password?: string;
   confirmed?: boolean;
+  refreshTokenCount?: number;
 }

@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { DBService } from '../../../database/DBService';
 import { UserOutput } from '../../outputs/user';
 import { CustomContext } from '../../types/CustomContext';
+import { createTokens } from '../../../auth/authUtils';
 
 @Service()
 @Resolver()
@@ -30,11 +31,17 @@ export class LoginMutation {
 
     if (!valid) return null;
 
-    if (!user.confirmed) return null;
+    // if (!user.confirmed) return null;
 
-    console.log('user validated');
-    ctx.req.session.userKey = user.userKey;
-    console.log(ctx.req.session);
+    const { refreshToken, accessToken } = createTokens(user);
+
+    ctx.res.cookie('refresh-token', refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    });
+    ctx.res.cookie('access-token', accessToken, {
+      maxAge: 1000 * 60 * 5, // 5 min
+    });
+
     return user;
   }
 }

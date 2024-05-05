@@ -8,6 +8,7 @@ export class User extends Item {
   email: string;
   password: string;
   confirmed: boolean;
+  refreshTokenCount: number;
   dateCreated: string;
   dateUpdated: string;
 }
@@ -25,6 +26,7 @@ export const userSchema = new Schema({
   lastName: String,
   password: String,
   confirmed: Boolean,
+  refreshTokenCount: Number,
   dateCreated: {
     type: String,
     default: 'today',

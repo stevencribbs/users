@@ -16,11 +16,11 @@ export class MeResolver {
 
   @Query(() => UserOutput, { nullable: true })
   async me(@Ctx() ctx: CustomContext): Promise<UserOutput | undefined> {
-    console.log('Me Resolver', ctx.req.session);
-    if (!ctx.req.session!.userKey) {
+    console.log('Me Resolver', ctx.req.userKey);
+    if (!ctx.req.userKey) {
       return undefined;
     }
-    const user = await this.dbService.getUser(ctx.req.session.userKey);
+    const user = await this.dbService.getUser(ctx.req.userKey);
 
     return user ?? undefined;
   }

@@ -7,22 +7,33 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import express from 'express';
 import dynamoose from 'dynamoose';
-import session, { SessionOptions } from 'express-session';
-import RedisStore from 'connect-redis';
 import cors from 'cors';
 import { GraphQLError, GraphQLFormattedError } from 'graphql';
 import { buildSchema } from './graphql/schema';
-import { redisClient } from './redis';
 import http from 'http';
 import {
   ApolloServerPluginLandingPageLocalDefault,
   ApolloServerPluginLandingPageProductionDefault,
 } from '@apollo/server/plugin/landingPage/default';
+import cookieParser from 'cookie-parser';
+import { verify } from 'jsonwebtoken';
+import {
+  ACCESS_TOKEN_SECRET,
+  REFRESH_TOKEN_SECRET,
+} from './graphql/constants/tokens';
+import { DBService } from './database/DBService';
+import { createTokens } from './auth/authUtils';
 
-// Augment express-session with a custom SessionData object
-declare module 'express-session' {
-  interface SessionData {
-    userKey: string;
+// declare namespace Express {
+//   export interface Request {
+//     userKey?: string;
+//   }
+// }
+declare global {
+  namespace Express {
+    interface Request {
+      userKey: string;
+    }
   }
 }
 
@@ -71,40 +82,68 @@ const main = async () => {
     }),
   );
 
-  let sessionRedisStore;
-  if (process.env.USE_REDIS === 'yes') {
-    console.log('yes Redis');
-    // @ts-ignore
-    sessionRedisStore = new RedisStore({ client: redisClient as any });
-  } else {
-    console.log('no Redis');
-  }
-
-  app.use(
-    '/graphql',
-    express.json(),
-    session({
-      // Setting the store will then persist the session in redis
-      store: sessionRedisStore,
-      name: 'qid',
-      secret: 'aslkdfjoiq12312',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        // secure: process.env.NODE_ENV === 'production',
-        secure: false,
-        maxAge: 1000 * 60 * 60 * 24 * 7 * 365, // 7 years
-        sameSite: 'lax', // for production, this should likely be 'none'
-      },
-    }),
-  );
+  app.use('/graphql', express.json());
 
   // NOTE: 'trust proxy' should not be set to true in production; this is needed for
   // setting cookies
   // NOTE: apollo client also needs "Include cookies" turned on; and, a shared header added
   // Header: name: "x-forwarded-proto" value: "https"
   app.set('trust proxy', true);
+
+  app.use(cookieParser());
+  app.use(async (req, res, next) => {
+    // check for existing login/access information to see if we already have valid credentials
+    // if so, we can skip the login process (which must hit the database)
+    // if not, abort the current request and require the user to log in
+    const dbService = new DBService();
+    console.log(req.cookies);
+    const accessToken = req.cookies['access-token'];
+    const refreshToken = req.cookies['refresh-token'];
+
+    if (!accessToken && !refreshToken) {
+      console.log('access and refresh tokens invalid');
+      return next();
+    }
+
+    // verify access token
+    try {
+      const data = verify(accessToken, ACCESS_TOKEN_SECRET) as any;
+      console.log('valid access token');
+      req.userKey = data.userKey;
+      return next();
+    } catch {
+      console.log('access token invalid');
+    }
+
+    // access token didn't work; so, try verifying the refresh token
+    if (!refreshToken) {
+      console.log('refresh token invalid');
+      return next();
+    }
+
+    let data;
+    // verify refresh token
+    console.log('need to verify refresh token');
+    try {
+      data = verify(refreshToken, REFRESH_TOKEN_SECRET) as any;
+      console.log('valid refresh token');
+    } catch {
+      console.log('refresh token invalid');
+      return next();
+    }
+    const user = await dbService.getUser(data!.userKey);
+    if (!user || user.refreshTokenCount !== data!.refreshTokenCount) {
+      console.log('refresh token count does not match');
+      return next();
+    }
+
+    const tokens = createTokens(user);
+
+    res.cookie('refresh-token', tokens.refreshToken); // a new refresh token here will basically keep users logged in as long as they have refreshed within 7 days
+    res.cookie('access-token', tokens.accessToken);
+    req.userKey = user.userKey;
+    next();
+  });
 
   app.use(
     // NOTE: Since the request session interface is extended to include the userKey,

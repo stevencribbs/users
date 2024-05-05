@@ -12,6 +12,7 @@ import { ConfirmUserMutation } from './mutations/ConfirmUser/ConfirmUserMutation
 import { ForgotPasswordMutation } from './mutations/ForgotPassword/ForgotPasswordMutation';
 import { ChangePasswordMutation } from './mutations/ChangePassword/ChangePasswordMutation';
 import { LogoutMutation } from './mutations/Logout/Logout';
+import { InvalidateTokensMutation } from './mutations/InvalidateTokens/InvalidateTokens';
 
 const checkScopes: typeGraphQL.AuthChecker<CustomContext> = (
   { root, args, context },
@@ -19,11 +20,7 @@ const checkScopes: typeGraphQL.AuthChecker<CustomContext> = (
 ) => {
   const { req } = context;
 
-  // is the user logged in
-  if (req.session.userKey) {
-    return true;
-  }
-  return false;
+  return true;
 };
 
 export const buildSchema = async () => {
@@ -38,6 +35,7 @@ export const buildSchema = async () => {
       ConfirmUserMutation,
       ForgotPasswordMutation,
       ChangePasswordMutation,
+      InvalidateTokensMutation,
     ],
     container: Container,
     // validate: { forbidUnknownValues: false },
