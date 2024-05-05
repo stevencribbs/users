@@ -10,6 +10,8 @@ The application uses Redis for caching user logins. Redis will need to be instal
 
 `brew install redis`
 
+NOTE: for the JWT branch, redis installation is not required.
+
 ## Setup DynamoDB
 
 You will want to set up a local instance of DynamoDB. This can be a local install or a docker-based container.  
